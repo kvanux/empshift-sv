@@ -1,3 +1,5 @@
+<!-- Replace API URL at line .. -->
+
 <script lang="ts">
   import {
     GradientButton,
@@ -10,7 +12,6 @@
     Helper,
     Alert,
     Range,
-    Tooltip,
   } from "flowbite-svelte";
   import {
     WandMagicSparklesOutline,
@@ -20,20 +21,14 @@
     InfoCircleSolid,
     BanOutline,
     LockOutline,
-    LockOpenOutline,
     HeartOutline,
     PenNibOutline,
     ShareNodesOutline,
     CloseOutline,
+    CheckOutline,
+    TrashBinOutline,
+    UndoOutline,
   } from "flowbite-svelte-icons";
-  import {
-    Table,
-    TableBody,
-    TableBodyCell,
-    TableBodyRow,
-    TableHead,
-    TableHeadCell,
-  } from "flowbite-svelte";
 
   import type { Staff, Schedule } from "./type";
 
@@ -54,9 +49,9 @@
     "Saturday",
     "Sunday",
   ];
-  const days = $derived(weekday.slice(0, daysCount));
-  const shifts = $derived(
-    Array.from({ length: shiftCount }, (_, i) => `Shift ${i + 1}`)
+  let days = $derived(weekday.slice(0, daysCount));
+  let shifts = $derived(
+    Array.from({ length: shiftCount }, (_, i) => `Shift ${i + 1}`),
   );
 
   let staffs = $state<Staff[]>([]);
@@ -106,7 +101,7 @@
               name: shifts[i],
               day: days[j],
               assigned: [],
-              prefered: [],
+              preferred: [],
               unavailable: [],
               isOkay: false,
               isLocked: false,
@@ -125,7 +120,7 @@
               name: shifts[i],
               day: days[j],
               assigned: [],
-              prefered: [],
+              preferred: [],
               unavailable: [],
               isOkay: false,
               isLocked: false,
@@ -138,9 +133,6 @@
       schedules = [];
     }
   });
-
-  let isLoading = $state(false);
-  let error = $state<string | null>(null);
 
   let empSessionExpanded = $state(false);
   let toolMode = $state("none");
@@ -157,6 +149,58 @@
       }
     }
   });
+
+  let resetDisable = $state(true);
+
+  let magicDisable = $state(true);
+  $effect(() => {
+    if (
+      daysCount > 0 &&
+      shiftCount > 0 &&
+      empCount > 0 &&
+      minShift > 0 &&
+      maxShift > 0 &&
+      maxStaff > 0
+    ) {
+      magicDisable = false;
+    }
+  });
+
+  let isLoading = $state(false);
+  let error = $state<string | null>(null);
+
+  async function magic() {
+    isLoading = true;
+    error = null;
+
+    try {
+      const response = await fetch("http://localhost:8080/api/csp", {
+        // pending real URL
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          staff: staffs,
+          schedules: schedules,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to save package");
+      }
+
+      staffs = data.staffs;
+      schedules = data.schedules;
+    } catch (err) {
+      console.log("Error");
+    } finally {
+      isLoading = false;
+    }
+  }
 </script>
 
 <main class="grid grid-cols-12 min-h-screen">
@@ -293,9 +337,16 @@
         >
       {/if}
     </div>
-    <GradientButton color="pinkToOrange" size="lg" class="mt-2 cursor-pointer"
-      ><WandMagicSparklesOutline class="w-5 h-5 me-2" />Magic Schedule</GradientButton
+    <GradientButton
+      color="pinkToOrange"
+      size="lg"
+      class={`mt-2 cursor-pointer ${magicDisable && "hover:bg-gray-100 bg-gray-100 cursor-not-allowed"}`}
+      disabled={magicDisable}
+      on:click={magic}
     >
+      <WandMagicSparklesOutline class="w-5 h-5 me-2" />
+      Magic Schedule
+    </GradientButton>
   </div>
   <div class="flex flex-col col-span-9 gap-6 p-6 bg-gray-100">
     {#if minStaff * daysCount * shiftCount > empCount * maxShift}
@@ -319,7 +370,7 @@
     {/if}
     {#if staffs.length > 0 && empCount <= 60}
       <div
-        class={`is-expandable flex flex-col p-5 gap-4 bg-white rounded-lg overflow-clip ${empSessionExpanded ? "" : "h-48"}`}
+        class={`is-expandable flex flex-col p-5 gap-4 bg-white rounded-lg overflow-clip ${empSessionExpanded ? "" : "h-52"}`}
       >
         <div class="flex justify-between items-start">
           <div class="flex gap-3 items-center">
@@ -364,16 +415,26 @@
                   id="tooltip-employee-trigger"
                   class="flex items-center gap-1"
                 >
-                  <ExclamationCircleSolid
-                    class={`w-4 h-4 ${staff.isOkay ? "text-green-700" : "text-amber-700"}`}
-                  />
-                  <p
-                    class={`text-sm font-normal ${staff.isOkay ? "text-green-800" : "text-amber-800"}`}
+                  <div
+                    class="p-1 flex flex-col items-center gap-[2px] rounded-3xl bg-blue-50 text-blue-800 text-sm"
                   >
-                    {staff.isOkay ? "Okay" : "Not okay"}
-                  </p>
+                    <HeartOutline class="w-4 h-4" />
+                    <p>{staff.preferred.length}</p>
+                  </div>
+                  <div
+                    class="p-1 flex flex-col items-center gap-[2px] rounded-3xl bg-rose-50 text-rose-800 text-sm"
+                  >
+                    <BanOutline class="w-4 h-4" />
+                    <p>{staff.unavailable.length}</p>
+                  </div>
+                  <div
+                    class={`p-1 flex flex-col items-center gap-[2px]  rounded-3xl ${staff.isOkay ? "text-green-800 bg-green-50" : "text-gray-800 bg-gray-50"} text-sm`}
+                  >
+                    <CheckOutline class="w-4 h-4" />
+                    <p>{staff.assigned.length}</p>
+                  </div>
                 </div>
-                <Tooltip
+                <!-- <Tooltip
                   triggeredBy="#tooltip-employee-trigger"
                   placement="top"
                   arrow={false}
@@ -387,121 +448,175 @@
                       <li>Overworked</li>
                     {/if}
                   </ul>
-                </Tooltip>
+                </Tooltip> -->
               </div>
             </Card>
           {/each}
         </div>
       </div>
     {/if}
-    <div class="w-full flex justify-between bg-white rounded-lg overflow-clip">
-      <div class="flex gap-3 p-3 pl-4 items-center">
-        <h3 class="text-lg font-semibold text-gray-800">Toolbar</h3>
-        <p class="text-sm font-normal pt-1">
-          Current mode: <span
-            class={`text-sm font-medium ${toolMode === "none" ? "text-gray-500" : "text-primary-700"}`}
-            >{toolMode}</span
-          >
-        </p>
-        {#if toolMode !== "none"}
-          <button
-            onclick={() => {
-              toolMode = "none";
+    <div class="flex flex-col p-5 gap-4 bg-white rounded-lg">
+      <div class="flex justify-between">
+        <div class="flex flex-col gap-1">
+          <h2 class="text-lg font-semibold text-gray-800">
+            This Week Schedule
+          </h2>
+          <div class="flex items-center gap-2">
+            <p class="text-sm font-normal">
+              Current mode: <span
+                class={`text-sm font-medium ${toolMode === "none" ? "text-gray-500" : "text-primary-700"}`}
+                >{toolMode}</span
+              >
+            </p>
+            {#if toolMode !== "none"}
+              <button
+                onclick={() => {
+                  toolMode = "none";
+                }}
+              >
+                <CloseOutline class="w-4 h-4 text-primary-700 cursor-pointer" />
+              </button>
+            {/if}
+          </div>
+        </div>
+        <ButtonGroup class="*:ring-primary-700! shadow-none drop-shadow-none">
+          <Button
+            size="md"
+            class={`cursor-pointer h-11 border-1 focus-within:ring-0 ${toolMode === "Remove" ? "text-primary-700 bg-primary-50 border-primary-300" : "text-gray-600 border-gray-200"}`}
+            on:click={() => {
+              toolMode = "Remove";
             }}
           >
-            <CloseOutline
-              class="w-4 h-4 text-primary-700 -ml-2 mt-1 cursor-pointer"
-            />
-          </button>
-        {/if}
+            <TrashBinOutline class="w-4 h-4 me-2" />
+            Remove
+          </Button>
+          <Button
+            size="md"
+            class={`cursor-pointer h-11 border-1 focus-within:ring-0 ${toolMode === "Prefer" ? "text-primary-700 bg-primary-50 border-primary-300" : "text-gray-600 border-gray-200"}`}
+            on:click={() => {
+              toolMode = "Prefer";
+            }}
+          >
+            <HeartOutline class="w-4 h-4 me-2" />
+            Prefer
+          </Button>
+          <Button
+            size="md"
+            class={`cursor-pointer h-11 border-1 focus-within:ring-0 ${toolMode === "Unavailable" ? "text-primary-700 bg-primary-50 border-primary-300" : "text-gray-600 border-gray-200"}`}
+            on:click={() => {
+              toolMode = "Unavailable";
+            }}
+          >
+            <BanOutline class="w-4 h-4 me-2" />
+            Unavailable
+          </Button>
+          <Button
+            size="md"
+            class={`cursor-pointer h-11 border-1 focus-within:ring-0 ${toolMode === "Lock" ? "text-primary-700 bg-primary-50 border-primary-300" : "text-gray-600 border-gray-200"}`}
+            on:click={() => {
+              toolMode = "Lock";
+            }}
+          >
+            <LockOutline class="w-4 h-4 me-2" />
+            Lock/Unlock
+          </Button>
+          <Button
+            size="md"
+            class={`cursor-pointer h-11 border-1 focus-within:ring-0 ${toolMode === "Assign" ? "text-primary-700 bg-primary-50 border-primary-300" : "text-gray-600 border-gray-200"}`}
+            on:click={() => {
+              toolMode = "Assign";
+            }}
+          >
+            <PenNibOutline class="w-4 h-4 me-2" />
+            Assign
+          </Button>
+        </ButtonGroup>
       </div>
-      <ButtonGroup class="*:ring-primary-700!">
-        <Button
-          class={`cursor-pointer border-0 rounded-none! focus-within:ring-0 ${toolMode === "Prefer" ? "text-primary-700 bg-primary-50" : "text-gray-600"}`}
-          on:click={() => {
-            toolMode = "Prefer";
-          }}
-        >
-          <HeartOutline class="w-4 h-4 me-2" />
-          Prefer
-        </Button>
-        <Button
-          class={`cursor-pointer border-0 rounded-none! focus-within:ring-0 ${toolMode === "Unavailable" ? "text-primary-700 bg-primary-50" : "text-gray-600"}`}
-          on:click={() => {
-            toolMode = "Unavailable";
-          }}
-        >
-          <BanOutline class="w-4 h-4 me-2" />
-          Unavailable
-        </Button>
-        <Button
-          class={`cursor-pointer border-0 rounded-none! focus-within:ring-0 ${toolMode === "Assign" ? "text-primary-700 bg-primary-50" : "text-gray-600"}`}
-          on:click={() => {
-            toolMode = "Assign";
-          }}
-        >
-          <PenNibOutline class="w-4 h-4 me-2" />
-          Assign
-        </Button>
-      </ButtonGroup>
-    </div>
-    <div class="flex flex-col p-5 gap-4 bg-white rounded-lg">
-      <h2 class="text-lg font-semibold text-gray-800">This Week Schedule</h2>
       {#if isValidDaysCount && isValidShiftCount}
-        <Table class="w-full cursor-default">
-          <TableHead>
-            <TableHeadCell class="text-neutral-500 font-normal"
-              >Shifts</TableHeadCell
-            >
-            {#each days as day, i}
-              <TableHeadCell>{day}</TableHeadCell>
-            {/each}
-          </TableHead>
-          <TableBody>
+        <table class="w-full cursor-default">
+          <thead>
+            <tr>
+              <th class="text-neutral-500 font-normal">Shifts</th>
+              {#each days as day, i}
+                <th>{day}</th>
+              {/each}
+            </tr>
+          </thead>
+          <tbody>
             {#each shifts as shift, i}
-              <TableBodyRow>
-                <TableBodyCell>{shift}</TableBodyCell>
+              <tr>
+                <td>
+                  <input
+                    type="text"
+                    bind:value={shifts[i]}
+                    class="cursor-text max-w-[120px] bg-transparent border-none outline-none caret-black focus:ring-0 p-0 text-base text-gray-700 font-normal hover:bg-primary-50"
+                  />
+                </td>
                 {#each days as day, j}
-                  <TableBodyCell
-                    on:click={() => {
-                      if (toolMode === "Assign") {
-                        schedules
-                          .find(
-                            (item) => item.day === day && item.name === shift
-                          )
-                          ?.assigned.push(selectedEmp as number);
-                        staffs
-                          .find((item) => item.id === selectedEmp)
-                          ?.assigned.push(`${shift}-${day}`);
-                      } else if (toolMode === "Unavailable") {
-                        schedules
-                          .find(
-                            (item) => item.day === day && item.name === shift
-                          )
-                          ?.unavailable.push(selectedEmp as number);
-                        staffs
-                          .find((item) => item.id === selectedEmp)
-                          ?.unavailable.push(`${shift}-${day}`);
-                      } else if (toolMode === "Prefer") {
-                        schedules
-                          .find(
-                            (item) => item.day === day && item.name === shift
-                          )
-                          ?.prefered.push(selectedEmp as number);
-                        staffs
-                          .find((item) => item.id === selectedEmp)
-                          ?.preferred.push(`${shift}-${day}`);
+                  <td
+                    onclick={() => {
+                      // prettier-ignore
+                      const schedule = schedules.find((item) => item.day === day && item.name === shift);
+                      /* prettier-ignore-start */
+                      // prettier-ignore
+                      if (toolMode === "Assign" && schedule && !schedule.assigned.includes(selectedEmp as number) && !schedule.unavailable.includes(selectedEmp as number) && schedule.isLocked === false) {
+                        schedule.assigned.push(selectedEmp as number);
+                        staffs.find((item) => item.id === selectedEmp)?.assigned.push(`${shift}-${day}`);
+                      } else if (toolMode === "Unavailable" && schedule && !schedule.unavailable.includes(selectedEmp as number) && !schedule.preferred.includes(selectedEmp as number) && schedule.isLocked === false) {
+                        schedule.unavailable.push(selectedEmp as number);
+                        staffs.find((item) => item.id === selectedEmp)?.unavailable.push(`${shift}-${day}`);
+                      } else if (toolMode === "Prefer" && schedule && !schedule.preferred.includes(selectedEmp as number) && !schedule.unavailable.includes(selectedEmp as number) && schedule.isLocked === false) {
+                        schedule.preferred.push(selectedEmp as number);
+                        staffs.find((item) => item.id === selectedEmp)?.preferred.push(`${shift}-${day}`);
+                      } else if (toolMode === "Remove" && schedule && schedule.isLocked === false) {
+                        if (schedule.assigned.includes(selectedEmp as number)) {
+                          let index1 = schedule?.assigned.indexOf(selectedEmp as number);
+                          let index2 = staffs.find((item) => item.id === selectedEmp)?.assigned.indexOf(`${shift}-${day}`) as number;
+                          schedule?.assigned.splice(index1, 1);
+                          staffs.find((item) => item.id === selectedEmp)?.assigned.splice(index2, 1);
+                        } else if (schedule.unavailable.includes(selectedEmp as number)) {
+                          let index1 = schedule?.unavailable.indexOf(selectedEmp as number);
+                          let index2 = staffs.find((item) => item.id === selectedEmp)?.unavailable.indexOf(`${shift}-${day}`) as number;
+                          schedule?.unavailable.splice(index1, 1);
+                          staffs.find((item) => item.id === selectedEmp)?.unavailable.splice(index2, 1);
+                        } else if (schedule.preferred.includes(selectedEmp as number)) {
+                          let index1 = schedule?.preferred.indexOf(selectedEmp as number);
+                          let index2 = staffs.find((item) => item.id === selectedEmp)?.preferred.indexOf(`${shift}-${day}`) as number;
+                          schedule?.preferred.splice(index1, 1);
+                          staffs.find((item) => item.id === selectedEmp)?.preferred.splice(index2, 1);
+                        }
+                      } else if (toolMode === "Lock") {
+                        if (schedule?.isLocked === false) {
+                          schedule.isLocked = true
+                        } else if (schedule?.isLocked === true) {
+                          schedule.isLocked = false
+                        }
                       }
+                      resetDisable = false;
+                      /* prettier-ignore-end */
                     }}
-                    class={`hover:bg-gray-50 flex flex-col gap-2 ${selectedEmp === undefined || toolMode === "none" ? "cursor-not-allowed" : "cursor-pointer"}`}
+                    class={`hover:bg-gray-50! gap-2 ${(selectedEmp === undefined || toolMode === "none") && toolMode != "Lock" ? "cursor-not-allowed!" : "cursor-pointer!"} ${schedules.find((item) => item.day === day && item.name === shift)?.unavailable.includes(selectedEmp as number) && "bg-red-100"} ${schedules.find((item) => item.day === day && item.name === shift)?.preferred.includes(selectedEmp as number) && "bg-blue-50"}`}
                   >
-                    <!-- assigned employee list -->
-                  </TableBodyCell>
+                    <div class={`flex flex-col gap-1`}>
+                      {#each schedules.find((item) => item.name === shift && item.day === day)?.assigned as number[] as shiftCell}
+                        <div
+                          class={`p-2 flex gap-1 justify-between items-center rounded-sm bg-gray-200/50 text-sm ${selectedEmp === undefined || toolMode === "none" ? "cursor-not-allowed!" : "cursor-pointer!"}`}
+                        >
+                          {staffs.find((item) => item.id === shiftCell)?.name}
+                        </div>
+                      {/each}
+                      {#if schedules.find((item) => item.day === day && item.name === shift)?.isLocked === true}
+                        <LockOutline
+                          class="w-5 h-5 text-primary-800 self-end"
+                        />
+                      {/if}
+                    </div>
+                  </td>
                 {/each}
-              </TableBodyRow>
+              </tr>
             {/each}
-          </TableBody>
-        </Table>
+          </tbody>
+        </table>
       {:else}
         <div class="flex items-center gap-1">
           <ExclamationCircleSolid class={`w-4 h-4 text-rose-700`} />
@@ -510,6 +625,37 @@
           </p>
         </div>
       {/if}
+      <Button
+        on:click={() => {
+          if (!resetDisable) {
+            for (let i = 0; i < staffs.length; i++) {
+              staffs[i].assigned = [];
+              staffs[i].preferred = [];
+              staffs[i].unavailable = [];
+            }
+            for (let i = 0; i < schedules.length; i++) {
+              schedules[i].assigned = [];
+              schedules[i].preferred = [];
+              schedules[i].unavailable = [];
+            }
+          }
+          resetDisable = true;
+        }}
+        color="light"
+        disabled={resetDisable}
+        class={`gap-2 max-w-32 self-end ${resetDisable && "hover:bg-white cursor-not-allowed"}`}
+      >
+        <UndoOutline class="w-4 h-4" />
+        Reset
+      </Button>
+      <!-- <Button
+        on:click={() => {
+          console.log(shifts);
+        }}
+        class={`gap-2 max-w-32 self-end`}
+      >
+        Test
+      </Button> -->
     </div>
   </div>
 </main>

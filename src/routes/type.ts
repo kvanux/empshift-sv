@@ -12,7 +12,7 @@ export type Schedule = {
     name: string,
     day: string,
     assigned: number[],
-    prefered: number[],
+    preferred: number[],
     unavailable: number[],
     isOkay: boolean,
     isLocked: boolean,

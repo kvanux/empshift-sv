@@ -113,3 +113,50 @@ h3 {
 p {
   cursor: default;
 }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  table-layout: fixed;
+}
+
+thead {
+  background-color: #f8f9fa;
+}
+
+th {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 2px solid #eee;
+  font-weight: 600;
+  color: #555;
+}
+
+td {
+  padding: 20px 20px 32px 20px;
+  border-bottom: 1.5px solid #eee;
+  vertical-align: top;
+}
+
+/* First column styling (shift names) */
+tbody tr td:first-child {
+  font-weight: 500;
+  background-color: #f8f9fa;
+  color: #555;
+}
+
+/* Day cells style */
+td:not(:first-child) {
+  cursor: pointer;
+  transition: background-color 0.2s;
+  min-height: 60px;
+}
+
+td:not(:first-child):hover {
+  background-color: #e9ecef;
+}
+
+button {
+  cursor: pointer;
+}
