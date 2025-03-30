@@ -1,5 +1,3 @@
-<!-- Replace API URL at line .. -->
-
 <script lang="ts">
   import {
     GradientButton,
@@ -12,6 +10,7 @@
     Helper,
     Alert,
     Range,
+    Spinner,
   } from "flowbite-svelte";
   import {
     WandMagicSparklesOutline,
@@ -23,7 +22,6 @@
     LockOutline,
     HeartOutline,
     PenNibOutline,
-    ShareNodesOutline,
     CloseOutline,
     CheckOutline,
     TrashBinOutline,
@@ -31,6 +29,8 @@
   } from "flowbite-svelte-icons";
 
   import type { Staff, Schedule } from "./type";
+
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   let daysCount = $state(0);
   let shiftCount = $state(0);
@@ -169,36 +169,50 @@
   let isLoading = $state(false);
   let error = $state<string | null>(null);
 
+  function updateStaffs() {
+    staffs = staffs.map((staff) => {
+      const assignedShifts = schedules
+        .filter((schedule) => schedule.assigned.includes(staff.id))
+        .map((schedule) => `${schedule.name}-${schedule.day}`);
+      return { ...staff, assigned: assignedShifts };
+    });
+  }
+
   async function magic() {
     isLoading = true;
     error = null;
 
     try {
-      const response = await fetch("http://localhost:8080/api/csp", {
-        // pending real URL
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          staff: staffs,
+          staffs: staffs,
           schedules: schedules,
+          minStaff: minStaff,
+          maxStaff: maxStaff,
+          minShift: minShift,
+          maxShift: maxShift,
         }),
       });
-
-      const data = await response.json();
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Failed to save package");
       }
 
-      staffs = data.staffs;
+      const data = await response.json();
+
       schedules = data.schedules;
+      updateStaffs();
     } catch (err) {
-      console.log("Error");
+      console.error("Error:", (err as Error).message);
+      error = (err as Error).message;
     } finally {
       isLoading = false;
+      resetDisable = false;
     }
   }
 </script>
@@ -341,11 +355,16 @@
       color="pinkToOrange"
       size="lg"
       class={`mt-2 cursor-pointer ${magicDisable && "hover:bg-gray-100 bg-gray-100 cursor-not-allowed"}`}
-      disabled={magicDisable}
+      disabled={magicDisable || isLoading}
       on:click={magic}
     >
-      <WandMagicSparklesOutline class="w-5 h-5 me-2" />
-      Magic Schedule
+      {#if isLoading}
+        <Spinner class="me-2" size="4" color="white" />
+        Scheduling...
+      {:else}
+        <WandMagicSparklesOutline class="w-5 h-5 me-2" />
+        Magic Schedule
+      {/if}
     </GradientButton>
   </div>
   <div class="flex flex-col col-span-9 gap-6 p-6 bg-gray-100">
@@ -434,21 +453,6 @@
                     <p>{staff.assigned.length}</p>
                   </div>
                 </div>
-                <!-- <Tooltip
-                  triggeredBy="#tooltip-employee-trigger"
-                  placement="top"
-                  arrow={false}
-                  class="shadow-none"
-                >
-                  <ul>
-                    {#if staff.assigned.length < minShift}
-                      <li>Not enough shift assigned</li>
-                    {/if}
-                    {#if staff.assigned.length > maxShift}
-                      <li>Overworked</li>
-                    {/if}
-                  </ul>
-                </Tooltip> -->
               </div>
             </Card>
           {/each}
@@ -533,7 +537,9 @@
         </ButtonGroup>
       </div>
       {#if isValidDaysCount && isValidShiftCount}
-        <table class="w-full cursor-default">
+        <table
+          class={`w-full cursor-default ${isLoading && "pointer-events-none opacity-20"}`}
+        >
           <thead>
             <tr>
               <th class="text-neutral-500 font-normal">Shifts</th>
@@ -555,45 +561,47 @@
                 {#each days as day, j}
                   <td
                     onclick={() => {
-                      // prettier-ignore
-                      const schedule = schedules.find((item) => item.day === day && item.name === shift);
-                      /* prettier-ignore-start */
-                      // prettier-ignore
-                      if (toolMode === "Assign" && schedule && !schedule.assigned.includes(selectedEmp as number) && !schedule.unavailable.includes(selectedEmp as number) && schedule.isLocked === false) {
-                        schedule.assigned.push(selectedEmp as number);
-                        staffs.find((item) => item.id === selectedEmp)?.assigned.push(`${shift}-${day}`);
-                      } else if (toolMode === "Unavailable" && schedule && !schedule.unavailable.includes(selectedEmp as number) && !schedule.preferred.includes(selectedEmp as number) && schedule.isLocked === false) {
-                        schedule.unavailable.push(selectedEmp as number);
-                        staffs.find((item) => item.id === selectedEmp)?.unavailable.push(`${shift}-${day}`);
-                      } else if (toolMode === "Prefer" && schedule && !schedule.preferred.includes(selectedEmp as number) && !schedule.unavailable.includes(selectedEmp as number) && schedule.isLocked === false) {
-                        schedule.preferred.push(selectedEmp as number);
-                        staffs.find((item) => item.id === selectedEmp)?.preferred.push(`${shift}-${day}`);
-                      } else if (toolMode === "Remove" && schedule && schedule.isLocked === false) {
-                        if (schedule.assigned.includes(selectedEmp as number)) {
-                          let index1 = schedule?.assigned.indexOf(selectedEmp as number);
-                          let index2 = staffs.find((item) => item.id === selectedEmp)?.assigned.indexOf(`${shift}-${day}`) as number;
-                          schedule?.assigned.splice(index1, 1);
-                          staffs.find((item) => item.id === selectedEmp)?.assigned.splice(index2, 1);
-                        } else if (schedule.unavailable.includes(selectedEmp as number)) {
-                          let index1 = schedule?.unavailable.indexOf(selectedEmp as number);
-                          let index2 = staffs.find((item) => item.id === selectedEmp)?.unavailable.indexOf(`${shift}-${day}`) as number;
-                          schedule?.unavailable.splice(index1, 1);
-                          staffs.find((item) => item.id === selectedEmp)?.unavailable.splice(index2, 1);
-                        } else if (schedule.preferred.includes(selectedEmp as number)) {
-                          let index1 = schedule?.preferred.indexOf(selectedEmp as number);
-                          let index2 = staffs.find((item) => item.id === selectedEmp)?.preferred.indexOf(`${shift}-${day}`) as number;
-                          schedule?.preferred.splice(index1, 1);
-                          staffs.find((item) => item.id === selectedEmp)?.preferred.splice(index2, 1);
+                      if (!isLoading) {
+                        // prettier-ignore
+                        const schedule = schedules.find((item) => item.day === day && item.name === shift);
+                        /* prettier-ignore-start */
+                        // prettier-ignore
+                        if (toolMode === "Assign" && schedule && !schedule.assigned.includes(selectedEmp as number) && !schedule.unavailable.includes(selectedEmp as number) && schedule.isLocked === false) {
+                          schedule.assigned.push(selectedEmp as number);
+                          staffs.find((item) => item.id === selectedEmp)?.assigned.push(`${shift}-${day}`);
+                        } else if (toolMode === "Unavailable" && schedule && !schedule.unavailable.includes(selectedEmp as number) && !schedule.preferred.includes(selectedEmp as number) && schedule.isLocked === false) {
+                          schedule.unavailable.push(selectedEmp as number);
+                          staffs.find((item) => item.id === selectedEmp)?.unavailable.push(`${shift}-${day}`);
+                        } else if (toolMode === "Prefer" && schedule && !schedule.preferred.includes(selectedEmp as number) && !schedule.unavailable.includes(selectedEmp as number) && schedule.isLocked === false) {
+                          schedule.preferred.push(selectedEmp as number);
+                          staffs.find((item) => item.id === selectedEmp)?.preferred.push(`${shift}-${day}`);
+                        } else if (toolMode === "Remove" && schedule && schedule.isLocked === false) {
+                          if (schedule.assigned.includes(selectedEmp as number)) {
+                            let index1 = schedule?.assigned.indexOf(selectedEmp as number);
+                            let index2 = staffs.find((item) => item.id === selectedEmp)?.assigned.indexOf(`${shift}-${day}`) as number;
+                            schedule?.assigned.splice(index1, 1);
+                            staffs.find((item) => item.id === selectedEmp)?.assigned.splice(index2, 1);
+                          } else if (schedule.unavailable.includes(selectedEmp as number)) {
+                            let index1 = schedule?.unavailable.indexOf(selectedEmp as number);
+                            let index2 = staffs.find((item) => item.id === selectedEmp)?.unavailable.indexOf(`${shift}-${day}`) as number;
+                            schedule?.unavailable.splice(index1, 1);
+                            staffs.find((item) => item.id === selectedEmp)?.unavailable.splice(index2, 1);
+                          } else if (schedule.preferred.includes(selectedEmp as number)) {
+                            let index1 = schedule?.preferred.indexOf(selectedEmp as number);
+                            let index2 = staffs.find((item) => item.id === selectedEmp)?.preferred.indexOf(`${shift}-${day}`) as number;
+                            schedule?.preferred.splice(index1, 1);
+                            staffs.find((item) => item.id === selectedEmp)?.preferred.splice(index2, 1);
+                          }
+                        } else if (toolMode === "Lock") {
+                          if (schedule?.isLocked === false) {
+                            schedule.isLocked = true
+                          } else if (schedule?.isLocked === true) {
+                            schedule.isLocked = false
+                          }
                         }
-                      } else if (toolMode === "Lock") {
-                        if (schedule?.isLocked === false) {
-                          schedule.isLocked = true
-                        } else if (schedule?.isLocked === true) {
-                          schedule.isLocked = false
-                        }
+                        resetDisable = false;
+                        /* prettier-ignore-end */
                       }
-                      resetDisable = false;
-                      /* prettier-ignore-end */
                     }}
                     class={`hover:bg-gray-50! gap-2 ${(selectedEmp === undefined || toolMode === "none") && toolMode != "Lock" ? "cursor-not-allowed!" : "cursor-pointer!"} ${schedules.find((item) => item.day === day && item.name === shift)?.unavailable.includes(selectedEmp as number) && "bg-red-100"} ${schedules.find((item) => item.day === day && item.name === shift)?.preferred.includes(selectedEmp as number) && "bg-blue-50"}`}
                   >
@@ -648,14 +656,6 @@
         <UndoOutline class="w-4 h-4" />
         Reset
       </Button>
-      <!-- <Button
-        on:click={() => {
-          console.log(shifts);
-        }}
-        class={`gap-2 max-w-32 self-end`}
-      >
-        Test
-      </Button> -->
     </div>
   </div>
 </main>
