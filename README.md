@@ -35,7 +35,7 @@ Before running the project, ensure you have the following installed:
 3. Configure the backend API URL by creating a `.env` file in the root directory:
 
    ```env
-   SCHEDULEAPI_URL="http://localhost:8080/api/schedule"
+   VITE_API_URL="http://localhost:8080/api/schedule"
    ```
 
 ## Developing
