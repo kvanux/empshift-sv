@@ -366,6 +366,10 @@
         Magic Schedule
       {/if}
     </GradientButton>
+    <Label class="block mb-1 text-base font-normal"
+      >Note: Due to limited cloud service computing resource, auto-scheduling
+      will take longer than it is supposed to be.</Label
+    >
   </div>
   <div class="flex flex-col col-span-9 gap-6 p-6 bg-gray-100">
     {#if minStaff * daysCount * shiftCount > empCount * maxShift}
