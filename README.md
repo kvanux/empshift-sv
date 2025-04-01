@@ -1,6 +1,6 @@
 # Employee Shift Scheduler (Frontend)
 
-A Svelte-based user interface for managing employee shift schedules. This project serves as the frontend for interacting with a backend algorithm that generates optimized schedules.
+A Svelte-based user interface for managing employee shift schedules, also serves to make HTTP request to a backend algorithm that helps generates optimized schedules.
 
 ## Overview
 
@@ -9,6 +9,10 @@ This application provides an intuitive web interface for users to:
 - Input employee availability and preferences.
 - View and manage shift schedules.
 - Send requests to a backend API that handles schedule optimization.
+
+## Usage
+
+#### Live demo usage is stable and running at https://empshift-sv-cs50.vercel.app/
 
 ## Prerequisites
 
@@ -19,11 +23,13 @@ Before running the project, ensure you have the following installed:
 
 ## Getting Started
 
+**If you just want to try using the application, live demo is stable and running at:** https://empshift-sv-cs50.vercel.app/
+
 1. Clone the repository:
 
    ```bash
-   git clone <repository-url>
-   cd empshift-fe/empshift-sv
+   git clone https://github.com/kvanux/empshift-sv.git
+   cd empshift-sv
    ```
 
 2. Install dependencies:
@@ -35,10 +41,12 @@ Before running the project, ensure you have the following installed:
 3. Configure the backend API URL by creating a `.env` file in the root directory:
 
    ```env
-   VITE_API_URL="http://localhost:8080/api/schedule"
+   VITE_API_URL="https://empshift-csp.fly.dev/api/schedule"
    ```
 
-## Developing
+## Start Local Environment
+
+**If you just want to try using the application, live demo is stable and running at:** https://empshift-sv-cs50.vercel.app/
 
 To start the development server:
 
@@ -52,23 +60,6 @@ This will start the server and make the app available at `http://localhost:5173`
 npm run dev -- --open
 ```
 
-## Building
-
-To create a production build of the app:
-
-```bash
-npm run build
-```
-
-You can preview the production build locally with:
-
-```bash
-npm run preview
-```
-
-## Deployment
-
-To deploy the app, you may need to configure a SvelteKit adapter for your target environment. The project currently uses the `@sveltejs/adapter-auto` adapter.
 
 ## API Integration
 
@@ -76,4 +67,4 @@ This frontend communicates with a backend API that handles the scheduling logic.
 
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file for more details.
+This project is licensed under the MIT License.
